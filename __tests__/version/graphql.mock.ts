@@ -27,7 +27,10 @@ export function getMockedOldestQueryResponse(
           {
             node: {
               name: 'test',
-              versions: {
+              keepVersions: {
+                edges: []
+              },
+              lastVersions: {
                 edges: versions.reverse()
               }
             }

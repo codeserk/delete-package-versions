@@ -14,7 +14,10 @@ export interface GetVersionsQueryResponse {
       edges: {
         node: {
           name: string
-          versions: {
+          keepVersions: {
+            edges: {node: VersionInfo}[]
+          }
+          lastVersions: {
             edges: {node: VersionInfo}[]
           }
         }
@@ -24,13 +27,21 @@ export interface GetVersionsQueryResponse {
 }
 
 const query = `
-  query getVersions($owner: String!, $repo: String!, $package: String!, $last: Int!) {
+  query getVersions($owner: String!, $repo: String!, $package: String!, $last: Int!, $keep: Int!) {
     repository(owner: $owner, name: $repo) {
       packages(first: 1, names: [$package]) {
         edges {
           node {
             name
-            versions(last: $last) {
+            keepVersions: versions(first: $keep) {
+              edges {
+                node {
+                  id
+                  version
+                }
+              }
+            }
+            lastVersion: versions(last: $last) {
               edges {
                 node {
                   id
@@ -49,6 +60,7 @@ export function queryForOldestVersions(
   repo: string,
   packageName: string,
   numVersions: number,
+  keepVersions: number,
   token: string
 ): Observable<GetVersionsQueryResponse> {
   return from(
@@ -57,6 +69,7 @@ export function queryForOldestVersions(
       repo,
       package: packageName,
       last: numVersions,
+      keep: keepVersions,
       headers: {
         Accept: 'application/vnd.github.packages-preview+json'
       }
@@ -78,6 +91,7 @@ export function getOldestVersions(
   repo: string,
   packageName: string,
   numVersions: number,
+  keepVersions: number,
   token: string
 ): Observable<VersionInfo[]> {
   return queryForOldestVersions(
@@ -85,6 +99,7 @@ export function getOldestVersions(
     repo,
     packageName,
     numVersions,
+    keepVersions,
     token
   ).pipe(
     map(result => {
@@ -94,17 +109,36 @@ export function getOldestVersions(
         )
       }
 
-      const versions = result.repository.packages.edges[0].node.versions.edges
+      const packages = result.repository.packages.edges
+      return packages.reduce(
+        (packageVersions: {id: string; version: string}[], singlePackage) => {
+          const mapKeepVersions = singlePackage.node.keepVersions.edges.reduce(
+            (mapVersionIds: Record<string, boolean>, version) => {
+              mapVersionIds[version.node.id] = true
 
-      if (versions.length !== numVersions) {
-        console.log(
-          `number of versions requested was: ${numVersions}, but found: ${versions.length}`
-        )
-      }
+              return mapVersionIds
+            },
+            {}
+          )
+          const lastVersions = singlePackage.node.lastVersions.edges
+            .filter(version => !mapKeepVersions[version.node.id])
+            .map(version => ({
+              id: version.node.id,
+              version: version.node.version
+            }))
 
-      return versions
-        .map(value => ({id: value.node.id, version: value.node.version}))
-        .reverse()
+          if (lastVersions.length !== numVersions) {
+            console.log(
+              `number of versions requested was: ${numVersions}, but found: ${lastVersions.length}`
+            )
+          }
+
+          packageVersions.push(...lastVersions)
+
+          return packageVersions
+        },
+        []
+      )
     })
   )
 }
