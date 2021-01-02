@@ -27,6 +27,13 @@ inputs:
       Required if dynamically deleting oldest versions.
     required: false
 
+  num-versions-to-keep:
+    description: >
+      Number of versions to keep, ensure a certain number of versions are not deleted.
+      Defaults to 1. To keep the latest version.
+    required: false
+    default: "1"
+
   num-old-versions-to-delete:
     description: >
       Number of versions to delete starting with the oldest version.
