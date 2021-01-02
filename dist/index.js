@@ -16181,7 +16181,7 @@ const query = `
                 }
               }
             }
-            lastVersion: versions(last: $last) {
+            lastVersions: versions(last: $last) {
               edges {
                 node {
                   id
