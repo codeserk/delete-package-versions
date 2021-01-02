@@ -120,6 +120,9 @@ export function getOldestVersions(
             },
             {}
           )
+          console.log(
+            `keeping the following versions [${keepVersions}): ${mapKeepVersions}`
+          )
           const lastVersions = singlePackage.node.lastVersions.edges
             .filter(version => !mapKeepVersions[version.node.id])
             .map(version => ({
